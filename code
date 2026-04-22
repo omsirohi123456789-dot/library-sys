@@ -1,0 +1,305 @@
+import javax.swing.*;
+import javax.swing.table.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.util.ArrayList;
+
+class Book {
+    int id;
+    String name;
+    boolean isIssued;
+
+    String studentName = "";
+    String enrollment = "";
+    String contact = "";
+
+    Book(int id, String name) {
+        this.id = id;
+        this.name = name;
+        this.isIssued = false;
+    }
+}
+
+public class LibraryGUI extends JFrame {
+
+    ArrayList<Book> books = new ArrayList<>();
+
+    JTextField idField, nameField, searchField;
+    DefaultTableModel model;
+    JTable table;
+    JPanel dashboardPanel;
+
+    Color bgColor = new Color(25, 25, 25);
+    Color panelColor = new Color(40, 40, 40);
+    Color accentColor = new Color(0, 120, 215);
+    Color hoverColor = new Color(0, 150, 255);
+
+    public LibraryGUI() {
+
+        setTitle("Library Management System");
+        setSize(950, 600);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+
+        preloadBooks();
+
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBackground(bgColor);
+
+        // HEADER
+        JPanel headerPanel = new JPanel();
+        headerPanel.setBackground(panelColor);
+
+        JLabel title = new JLabel("📚 Library Management System");
+        title.setForeground(Color.WHITE);
+        title.setFont(new Font("Segoe UI", Font.BOLD, 24));
+
+        headerPanel.add(title);
+
+        // INPUT
+        JPanel topPanel = new JPanel();
+        topPanel.setBackground(panelColor);
+
+        idField = new JTextField(6);
+        nameField = new JTextField(10);
+        searchField = new JTextField(10);
+
+        styleTextField(idField);
+        styleTextField(nameField);
+        styleTextField(searchField);
+
+        topPanel.add(new JLabel("ID:"));
+        topPanel.add(idField);
+        topPanel.add(new JLabel("Name:"));
+        topPanel.add(nameField);
+        topPanel.add(new JLabel("Search:"));
+        topPanel.add(searchField);
+
+        JPanel northPanel = new JPanel(new BorderLayout());
+        northPanel.add(headerPanel, BorderLayout.NORTH);
+        northPanel.add(topPanel, BorderLayout.SOUTH);
+
+        // BUTTONS
+        JPanel btnPanel = new JPanel();
+        btnPanel.setBackground(bgColor);
+
+        JButton addBtn = createButton("Add");
+        JButton issueBtn = createButton("Issue");
+        JButton returnBtn = createButton("Return");
+        JButton refreshBtn = createButton("Refresh");
+
+        btnPanel.add(addBtn);
+        btnPanel.add(issueBtn);
+        btnPanel.add(returnBtn);
+        btnPanel.add(refreshBtn);
+
+        // TABLE
+        model = new DefaultTableModel(
+                new String[]{"ID", "Name", "Status", "Student", "Enroll", "Contact"}, 0);
+
+        table = new JTable(model) {
+            public Component prepareRenderer(TableCellRenderer r, int row, int col) {
+                Component c = super.prepareRenderer(r, row, col);
+                if (!isRowSelected(row)) {
+                    c.setBackground(row % 2 == 0 ? new Color(50,50,50) : new Color(60,60,60));
+                }
+                c.setForeground(Color.WHITE);
+                return c;
+            }
+        };
+
+        table.setRowHeight(25);
+
+        JTableHeader header = table.getTableHeader();
+        header.setBackground(accentColor);
+        header.setForeground(Color.WHITE);
+
+        JScrollPane scrollPane = new JScrollPane(table);
+
+        // DASHBOARD
+        createDashboardPanel();
+
+        JPanel centerPanel = new JPanel(new BorderLayout());
+        centerPanel.setBackground(bgColor);
+        centerPanel.add(dashboardPanel, BorderLayout.NORTH);
+        centerPanel.add(scrollPane, BorderLayout.CENTER);
+
+        mainPanel.add(northPanel, BorderLayout.NORTH);
+        mainPanel.add(centerPanel, BorderLayout.CENTER);
+        mainPanel.add(btnPanel, BorderLayout.SOUTH);
+
+        add(mainPanel);
+
+        // ACTIONS
+        addBtn.addActionListener(e -> addBook());
+        issueBtn.addActionListener(e -> issueBook());
+        returnBtn.addActionListener(e -> returnBook());
+        refreshBtn.addActionListener(e -> {
+            refreshTable();
+            updateDashboard();
+        });
+
+        searchField.addKeyListener(new KeyAdapter() {
+            public void keyReleased(KeyEvent e) {
+                searchBooks(searchField.getText().toLowerCase());
+            }
+        });
+
+        refreshTable();
+        updateDashboard();
+
+        setVisible(true);
+    }
+
+    // PRELOAD
+    void preloadBooks() {
+        String[] names = {
+            "Harry Potter","The Alchemist","Rich Dad Poor Dad","The Hobbit",
+            "1984","Atomic Habits","Ikigai","Sapiens","Deep Work","Zero to One",
+            "The Secret","Wings of Fire","The Monk Who Sold His Ferrari",
+            "Think and Grow Rich","Pride and Prejudice","The Great Gatsby",
+            "To Kill a Mockingbird","The Catcher in the Rye",
+            "7 Habits of Effective People","Power of Habit"
+        };
+        for (int i = 0; i < names.length; i++) {
+            books.add(new Book(i + 1, names[i]));
+        }
+    }
+
+    // ISSUE
+    void issueBook() {
+        int id = Integer.parseInt(idField.getText());
+        for (Book b : books) {
+            if (b.id == id) {
+                String name = JOptionPane.showInputDialog("Student Name:");
+                String en = JOptionPane.showInputDialog("Enrollment:");
+                String ph = JOptionPane.showInputDialog("Contact:");
+
+                if (name == null) return;
+
+                b.isIssued = true;
+                b.studentName = name;
+                b.enrollment = en;
+                b.contact = ph;
+
+                refreshTable();
+                updateDashboard();
+                return;
+            }
+        }
+    }
+
+    void returnBook() {
+        int id = Integer.parseInt(idField.getText());
+        for (Book b : books) {
+            if (b.id == id) {
+                b.isIssued = false;
+                b.studentName = "";
+                b.enrollment = "";
+                b.contact = "";
+                refreshTable();
+                updateDashboard();
+                return;
+            }
+        }
+    }
+
+    void addBook() {
+        books.add(new Book(Integer.parseInt(idField.getText()), nameField.getText()));
+        refreshTable();
+        updateDashboard();
+    }
+
+    void refreshTable() {
+        model.setRowCount(0);
+        for (Book b : books) {
+            model.addRow(new Object[]{
+                b.id, b.name,
+                b.isIssued ? "Issued" : "Available",
+                b.studentName, b.enrollment, b.contact
+            });
+        }
+    }
+
+    void searchBooks(String text) {
+        model.setRowCount(0);
+        for (Book b : books) {
+            if (b.name.toLowerCase().contains(text) ||
+                String.valueOf(b.id).contains(text)) {
+                model.addRow(new Object[]{
+                    b.id, b.name,
+                    b.isIssued ? "Issued" : "Available",
+                    b.studentName, b.enrollment, b.contact
+                });
+            }
+        }
+    }
+
+    // DASHBOARD
+    void createDashboardPanel() {
+        dashboardPanel = new JPanel(new GridLayout(1, 3, 20, 20));
+        dashboardPanel.setBackground(bgColor);
+    }
+
+    void updateDashboard() {
+        dashboardPanel.removeAll();
+        dashboardPanel.add(createCard("Total", books.size(), new Color(0,120,215)));
+        dashboardPanel.add(createCard("Issued", getIssuedBooks(), new Color(200,60,60)));
+        dashboardPanel.add(createCard("Available", getAvailableBooks(), new Color(60,180,75)));
+        dashboardPanel.revalidate();
+        dashboardPanel.repaint();
+    }
+
+    JPanel createCard(String title, int val, Color color) {
+        JPanel p = new JPanel();
+        p.setBackground(color);
+        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
+
+        JLabel v = new JLabel(String.valueOf(val));
+        v.setFont(new Font("Segoe UI", Font.BOLD, 28));
+        v.setForeground(Color.WHITE);
+        v.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JLabel t = new JLabel(title);
+        t.setForeground(Color.WHITE);
+        t.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        p.add(Box.createVerticalGlue());
+        p.add(v);
+        p.add(t);
+        p.add(Box.createVerticalGlue());
+
+        return p;
+    }
+
+    int getIssuedBooks() {
+        int c = 0;
+        for (Book b : books) if (b.isIssued) c++;
+        return c;
+    }
+
+    int getAvailableBooks() {
+        return books.size() - getIssuedBooks();
+    }
+
+    JButton createButton(String text) {
+        JButton b = new JButton(text);
+        b.setBackground(accentColor);
+        b.setForeground(Color.WHITE);
+
+        b.addMouseListener(new MouseAdapter() {
+            public void mouseEntered(MouseEvent e) { b.setBackground(hoverColor); }
+            public void mouseExited(MouseEvent e) { b.setBackground(accentColor); }
+        });
+        return b;
+    }
+
+    void styleTextField(JTextField f) {
+        f.setBackground(new Color(70,70,70));
+        f.setForeground(Color.WHITE);
+    }
+
+    public static void main(String[] args) {
+        new LibraryGUI();
+    }
+}
